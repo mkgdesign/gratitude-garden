@@ -1,0 +1,16 @@
+{
+  "hosting": {
+    "site": "mithra-gratitude-garden",
+    "public": ".",
+    "ignore": [
+      "firebase.json",
+      ".firebaserc",
+      "**/.*",
+      ".git/**",
+      ".firebase/**",
+      "**/node_modules/**",
+      "tools/**",
+      "flower*.png"
+    ]
+  }
+}
