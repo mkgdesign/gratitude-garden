@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#84c4cc">
+<title>Gratitude Garden</title>
+<link rel="stylesheet" href="garden.css">
+</head>
+<body data-season="summer">
+<canvas id="scene" aria-hidden="true"></canvas>
+
+<main class="ui">
+  <!-- hand-drawn input, as in the mockup -->
+  <form class="pill" id="pill" autocomplete="off">
+    <svg aria-hidden="true" preserveAspectRatio="none"><path id="pillTop"></path><path id="pillPath"></path></svg>
+    <input id="gratitude" type="text" maxlength="140" enterkeyhint="done"
+           placeholder="What are you grateful for today?" aria-label="What are you grateful for today?">
+    <button type="submit" class="sr-only">Plant</button>
+  </form>
+  <p class="hint" id="hint" aria-hidden="true">press enter to plant it</p>
+
+  <!-- season signs -->
+  <nav class="signs" id="signs" aria-label="Season">
+    <button class="sign" data-season="summer" aria-label="Summer" style="--r:-5deg"></button>
+    <button class="sign" data-season="winter" aria-label="Winter" style="--r:7deg"></button>
+    <button class="sign" data-season="rain" aria-label="Rain" style="--r:-9deg"></button>
+    <button class="sign" data-season="fall" aria-label="Fall" style="--r:4deg"></button>
+  </nav>
+  <p class="sign-label" id="signLabel" aria-hidden="true"></p>
+
+  <button class="journal-btn" id="journalBtn" type="button">my gratitudes <span id="count">0</span></button>
+
+  <!-- shown when a flower is clicked -->
+  <div class="note" id="note" role="status" hidden>
+    <p class="note-text" id="noteText"></p>
+    <p class="note-date" id="noteDate"></p>
+  </div>
+</main>
+
+<!-- every entry, with its date -->
+<div class="modal" id="journal" hidden>
+  <div class="modal-backdrop" data-close></div>
+  <section class="paper" role="dialog" aria-modal="true" aria-labelledby="journalTitle">
+    <button class="close" type="button" aria-label="Close" data-close>&times;</button>
+    <h2 id="journalTitle">my gratitude garden</h2>
+    <p class="journal-sub" id="journalSub"></p>
+    <ol class="entries" id="entries"></ol>
+  </section>
+</div>
+
+<div class="sr-only" aria-live="polite" id="live"></div>
+<script src="garden.js"></script>
+</body>
+</html>

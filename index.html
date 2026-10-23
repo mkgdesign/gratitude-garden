@@ -1,0 +1,911 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#87c3cc">
+<title>Gratitude Garden</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Reenie+Beanie&display=swap" rel="stylesheet">
+<link rel="preload" as="image" href="assets/meadow-spring.jpg">
+<style>
+  :root {
+    --ink: #3a3a3a;
+    --hand: 'Reenie Beanie', 'Bradley Hand', 'Segoe Print', cursive;
+    --sans: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    --ph: clamp(34px, 4.3vh, 52px);
+    --pw: clamp(300px, 37.3vw, 760px);
+    --dw: clamp(22px, 2.1vw, 34px);
+    --dh: var(--dw);
+  }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #87c3cc; transition: background .8s; }
+  body { -webkit-font-smoothing: antialiased; }
+  #scene, #grass, #fx { position: fixed; inset: 0; width: 100vw; height: 100vh; height: 100dvh; display: block; }
+  #scene, #grass { pointer-events: none; }
+  #fx { touch-action: manipulation; }
+  .ui { position: fixed; inset: 0; pointer-events: none; }
+
+  /* gratitude input */
+  .pill {
+    position: absolute; left: 50%; top: calc(35.8vh - var(--ph) / 2);
+    width: var(--pw); height: var(--ph); transform: translateX(-50%);
+    pointer-events: auto; margin: 0;
+  }
+  .pill input {
+    position: absolute; inset: 0; width: 100%; height: 100%; box-sizing: border-box;
+    border: 0; border-radius: 999px; outline: 0; margin: 0;
+    background: rgba(255, 255, 255, .3);
+    font-family: var(--sans); font-size: calc(var(--ph) * .36); color: var(--ink);
+    padding: 0 1.1em; caret-color: var(--ink);
+  }
+  .pill input::placeholder { color: #6b6b6b; opacity: 1; transition: opacity .3s; }
+  .pill input:focus::placeholder { opacity: .6; }
+
+  /* season dots */
+  .seasons {
+    position: absolute; top: calc(2.8vh - var(--dh) / 2); right: calc(6vw - var(--dw) / 2);
+    display: flex; gap: max(9px, calc(2.4vw - var(--dw))); pointer-events: auto;
+  }
+  .dot {
+    width: var(--dw); height: var(--dh); padding: 0; border: 0; cursor: pointer;
+    background: none; display: grid; place-items: center;
+    filter: drop-shadow(0 0 1.2px rgba(255,255,255,.9)) drop-shadow(0 1px 2px rgba(40,60,80,.35));
+    opacity: .6; transform: rotate(var(--r, 0deg)) scale(.92);
+    transition: transform .5s cubic-bezier(.3,.7,.3,1), opacity .5s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .dot svg { width: 100%; height: 100%; overflow: visible; display: block; }
+  .dot:hover { opacity: .85; }
+  .dot[aria-pressed="true"] { opacity: 1; transform: rotate(var(--r, 0deg)) scale(1.1); }
+  .dot:focus-visible { outline: 1.5px solid var(--ink); outline-offset: 4px; border-radius: 50%; }
+  .season-label {
+    position: absolute; top: calc(2.8vh + var(--dh) / 2 + 6px); right: calc(6vw - var(--dw) / 2);
+    font: 21px/1 var(--hand); color: var(--ink); opacity: 0; transition: opacity .4s; letter-spacing: .05em;
+  }
+  .season-label.show { opacity: .85; }
+
+  /* note shown when hovering a gratitude flower */
+  .note {
+    position: absolute; left: 0; top: 0; max-width: min(320px, 72vw); box-sizing: border-box;
+    padding: .3em .85em .4em; font: 23px/1.1 var(--hand); color: var(--ink); letter-spacing: .03em;
+    background: rgba(244, 242, 233, .84); border: 1.5px solid var(--ink);
+    border-radius: 255px 16px 225px 16px / 16px 225px 16px 255px;
+    opacity: 0; transform: translate(-50%, calc(-100% + 4px)); transition: opacity .35s, transform .35s;
+    white-space: pre-wrap; overflow-wrap: anywhere;
+  }
+  .note small { display: block; font-size: .72em; opacity: .65; margin-top: .1em; }
+  .note.show { opacity: 1; transform: translate(-50%, -100%); }
+
+  .drift { position: absolute; font-family: var(--hand); color: var(--ink); white-space: pre; pointer-events: none; }
+  .drift span { display: inline-block; white-space: pre; }
+
+  #diag { position: fixed; left: 10px; bottom: 10px; z-index: 5; max-width: min(520px, 90vw); padding: 6px 10px; border-radius: 8px; background: rgba(30,30,30,.78); color: #fff; font: 12px/1.4 var(--sans); pointer-events: none; display: none; white-space: pre-wrap; }
+  .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
+  @media (max-width: 700px) {
+    :root { --pw: 86vw; }
+    .pill input { font-size: max(16px, min(calc(var(--ph) * .36), 4.2vw)); padding-left: .9em; padding-right: .9em; }
+  }
+</style>
+</head>
+<body>
+<canvas id="scene" aria-hidden="true"></canvas>
+<canvas id="grass" aria-hidden="true"></canvas>
+<canvas id="fx" aria-hidden="true"></canvas>
+
+<div id="diag"></div>
+<div class="ui" id="ui">
+  <form class="pill" id="pill" autocomplete="off">
+    <input id="gratitude" type="text" maxlength="120" enterkeyhint="done"
+           placeholder="What are you grateful for today?" aria-label="What are you grateful for today?">
+    <button type="submit" class="sr-only">Plant</button>
+  </form>
+
+  <div class="seasons" role="group" aria-label="Season">
+    <button class="dot" data-season="spring" aria-label="Spring" style="--r:-4deg"><svg viewBox="0 0 24 24" aria-hidden="true"><g transform="translate(12 12)"><g fill="#f4a6cf" stroke="#d9709f" stroke-width=".7"><ellipse cx="0" cy="-5.2" rx="3.6" ry="4.6" transform="rotate(0)"/><ellipse cx="0" cy="-5.2" rx="3.6" ry="4.6" transform="rotate(72)"/><ellipse cx="0" cy="-5.2" rx="3.6" ry="4.6" transform="rotate(144)"/><ellipse cx="0" cy="-5.2" rx="3.6" ry="4.6" transform="rotate(216)"/><ellipse cx="0" cy="-5.2" rx="3.6" ry="4.6" transform="rotate(288)"/></g><circle r="2.3" fill="#ffd95a" stroke="#e0a82e" stroke-width=".6"/></g></svg></button>
+    <button class="dot" data-season="summer" aria-label="Summer" style="--r:6deg"><svg viewBox="0 0 24 24" aria-hidden="true"><g transform="translate(12 12)"><g stroke="#f7a823" stroke-width="1.8" stroke-linecap="round"><line x1="0" y1="-7.6" x2="0" y2="-10.6" transform="rotate(0)"/><line x1="0" y1="-7.6" x2="0" y2="-10.6" transform="rotate(45)"/><line x1="0" y1="-7.6" x2="0" y2="-10.6" transform="rotate(90)"/><line x1="0" y1="-7.6" x2="0" y2="-10.6" transform="rotate(135)"/><line x1="0" y1="-7.6" x2="0" y2="-10.6" transform="rotate(180)"/><line x1="0" y1="-7.6" x2="0" y2="-10.6" transform="rotate(225)"/><line x1="0" y1="-7.6" x2="0" y2="-10.6" transform="rotate(270)"/><line x1="0" y1="-7.6" x2="0" y2="-10.6" transform="rotate(315)"/></g><circle r="5.4" fill="#ffd54a" stroke="#f2a31c" stroke-width=".8"/></g></svg></button>
+    <button class="dot" data-season="autumn" aria-label="Autumn" style="--r:-8deg"><svg viewBox="0 0 24 24" aria-hidden="true"><g stroke-linejoin="round" stroke-linecap="round"><path d="M12 2.5C18.5 6 20 12 12 20.5 4 12 5.5 6 12 2.5Z" fill="#e8742a" stroke="#b84a16" stroke-width=".9"/><path d="M12 7v15M12 11l-3-2.6M12 14l3.4-3M12 16.6l-2.6-2" fill="none" stroke="#b84a16" stroke-width=".9"/></g></svg></button>
+    <button class="dot" data-season="winter" aria-label="Winter" style="--r:10deg"><svg viewBox="0 0 24 24" aria-hidden="true"><g transform="translate(12 12)" stroke="#fff" stroke-width="1.7" stroke-linecap="round" fill="none"><g transform="rotate(0)"><line x1="0" y1="0" x2="0" y2="-9.5"/><polyline points="-2.6,-7.4 0,-5.2 2.6,-7.4"/></g><g transform="rotate(60)"><line x1="0" y1="0" x2="0" y2="-9.5"/><polyline points="-2.6,-7.4 0,-5.2 2.6,-7.4"/></g><g transform="rotate(120)"><line x1="0" y1="0" x2="0" y2="-9.5"/><polyline points="-2.6,-7.4 0,-5.2 2.6,-7.4"/></g><g transform="rotate(180)"><line x1="0" y1="0" x2="0" y2="-9.5"/><polyline points="-2.6,-7.4 0,-5.2 2.6,-7.4"/></g><g transform="rotate(240)"><line x1="0" y1="0" x2="0" y2="-9.5"/><polyline points="-2.6,-7.4 0,-5.2 2.6,-7.4"/></g><g transform="rotate(300)"><line x1="0" y1="0" x2="0" y2="-9.5"/><polyline points="-2.6,-7.4 0,-5.2 2.6,-7.4"/></g></g></svg></button>
+  </div>
+  <div class="season-label" id="seasonLabel" aria-hidden="true"></div>
+
+  <div class="note" id="note" role="tooltip"></div>
+  <div class="sr-only" aria-live="polite" id="live"></div>
+  <ul class="sr-only" id="list" aria-label="Your gratitudes"></ul>
+</div>
+
+<script src="assets/flowers.js"></script>
+<script>
+(() => {
+'use strict';
+
+/* ------------------------------------------------------------------ *
+ *  Seasons — each one is a recoloured copy of the painted meadow
+ *  (assets/meadow-<season>.jpg). The painting stays still; grass blades
+ *  and flowers are drawn on a WebGL layer above it.
+ * ------------------------------------------------------------------ */
+const SEASONS = ['spring', 'summer', 'autumn', 'winter'];
+const SEASON = {
+  spring: { sky: '#74b8e4', particles: 'petals' },
+  summer: { sky: '#69b2e6', particles: 'motes' },
+  autumn: { sky: '#86b4d2', particles: 'leaves' },
+  winter: { sky: '#a6c4d8', particles: 'snow' }
+};
+// painted sky per season: [top, middle, horizon] gradient, cloud highlight, cloud shadow, cloud count
+const SKY = {
+  spring: { g: ['#74b8e4', '#a9d6f0', '#dcf0f6'], hi: '#ffffff', sh: '#a9c6e0', n: 5 },
+  summer: { g: ['#69b2e6', '#a0d2f2', '#d6eef8'], hi: '#ffffff', sh: '#a2c3e4', n: 4 },
+  autumn: { g: ['#86b4d2', '#bdd5e0', '#f0e6d2'], hi: '#fff8ec', sh: '#b8c0cc', n: 3 },
+  winter: { g: ['#a6c4d8', '#cbdde8', '#eaf1f2'], hi: '#ffffff', sh: '#b4c6d6', n: 0 }
+};
+// grass palette sampled from grass.png, per season and distance band: [deep, dark, mid, light, sunlit]
+const PALETTE = {
+  spring: { far: ['#3f8a3a', '#499640', '#60aa40', '#9fd934', '#d0ea3a'], mid: ['#2f6a3e', '#479245', '#71b842', '#a5d445', '#d4ec44'], near: ['#1e5325', '#2d7233', '#35843a', '#70b64b', '#94cb54'] },
+  summer: { far: ['#56912f', '#609c33', '#78ae37', '#b4d73b', '#dce74b'], mid: ['#43752f', '#5e9936', '#89ba3a', '#b8d445', '#e0e953'], near: ['#31601e', '#437b29', '#4d8b2e', '#88b93f', '#aacd49'] },
+  autumn: { far: ['#8b6928', '#98742c', '#b18731', '#dbb446', '#edd069'], mid: ['#705322', '#95712c', '#c09537', '#dcb449', '#efd46f'], near: ['#58431a', '#725621', '#826226', '#c09438', '#d4ab46'] },
+  winter: { far: ['#99adb1', '#a7babb', '#becfcd', '#dfeade', '#f0f5e5'], mid: ['#7f929a', '#a4b7ba', '#ccdbd6', '#e0eadf', '#f2f7e7'], near: ['#687a81', '#82969c', '#91a6ab', '#cbdbd7', '#dae6de'] }
+};
+const FLOWER_TINT = ['#ef8fc4', '#f6f4ea', '#9466cc'];   // colour of the seed that drifts down
+// flowers from the reference painting: [x, y (image fractions), sprite, size multiplier, tilt]
+const PAINTED = [];   // none: only flowers attached to an entry are drawn
+
+/* ------------------------------------------------------------------ *
+ *  Utilities
+ * ------------------------------------------------------------------ */
+const TAU = Math.PI * 2;
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+const ease = t => 1 - Math.pow(1 - clamp(t, 0, 1), 3);
+const easeBack = t => { t = clamp(t, 0, 1) - 1; return 1 + 2.4 * t * t * t + 1.4 * t * t; };
+const smooth = (a, b, v) => { const t = clamp((v - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
+function mulberry32(a) { return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+const hexRgb = h => { const n = parseInt(h.slice(1), 16); return [n >> 16 & 255, n >> 8 & 255, n & 255]; };
+const rgba = (h, a = 1) => { const [r, g, b] = hexRgb(h); return `rgba(${r},${g},${b},${a})`; };
+const loadImg = src => new Promise(res => { if (!src) return res(null); const i = new Image(); i.onload = () => res(i); i.onerror = () => res(null); i.src = src; });
+
+function spline(pts) {
+  const n = pts.length, m = pts.map((_, i) => {
+    const a = pts[Math.max(0, i - 1)], b = pts[Math.min(n - 1, i + 1)];
+    return (b[1] - a[1]) / (b[0] - a[0]);
+  });
+  return fx => {
+    if (fx <= pts[0][0]) return pts[0][1];
+    if (fx >= pts[n - 1][0]) return pts[n - 1][1];
+    let i = 1; while (fx > pts[i][0]) i++;
+    const [x0, y0] = pts[i - 1], [x1, y1] = pts[i], h = x1 - x0, t = (fx - x0) / h, t2 = t * t, t3 = t2 * t;
+    return (2 * t3 - 3 * t2 + 1) * y0 + (t3 - 2 * t2 + t) * h * m[i - 1] + (-2 * t3 + 3 * t2) * y1 + (t3 - t2) * h * m[i];
+  };
+}
+// hill skyline, traced from grass.png (image fractions)
+const skyline = spline([[0, .4453], [.025, .4473], [.05, .4453], [.075, .4375], [.1, .4375], [.125, .4414], [.15, .4453], [.175, .4492], [.2, .457], [.225, .4668], [.25, .4707], [.275, .4629], [.3, .459], [.325, .4551], [.35, .4551], [.4, .4551], [.425, .457], [.45, .459], [.475, .4629], [.5, .4707], [.525, .4785], [.55, .4844], [.575, .4805], [.6, .4707], [.625, .4609], [.65, .4531], [.675, .4453], [.7, .4375], [.725, .4336], [.75, .4297], [.775, .4238], [.85, .4238], [.875, .4258], [.9, .4277], [.925, .4316], [.95, .4336], [.975, .4414], [1, .4531]]);
+// top of the sunlit foreground meadow, where the yellow band of grass runs (image fractions)
+const groundTop = spline([[-.04, .50], [.15, .51], [.30, .54], [.45, .58], [.60, .63], [.75, .67], [.90, .70], [1.04, .72]]);
+// 0 at the horizon, 1 at the bottom of the painting: blades and flowers are sized by this
+const persp = fy => clamp((fy - .42) / .58, 0, 1);
+const flowerSize = fy => IH * (.014 + .05 * Math.pow(persp(fy), .9));
+
+/* ------------------------------------------------------------------ *
+ *  State
+ * ------------------------------------------------------------------ */
+const params = new URLSearchParams(location.search);
+const FROZEN = params.has('still');
+// on-screen status: always shown if the grass layer fails, or with ?debug
+const diag = document.getElementById('diag');
+const showDiag = msg => { diag.textContent = msg; diag.style.display = 'block'; };
+window.addEventListener('error', e => showDiag('Script error: ' + e.message + (e.lineno ? ' (line ' + e.lineno + ')' : '')));
+window.addEventListener('unhandledrejection', e => showDiag('Error: ' + (e.reason && e.reason.message || e.reason)));
+const STORE = 'gratitude-garden:v1';
+const state = (() => {
+  try { const s = JSON.parse(localStorage.getItem(STORE)); if (s && Array.isArray(s.entries)) return s; } catch (e) {}
+  return { season: 'spring', entries: [] };
+})();
+if (!SEASON[state.season]) state.season = 'spring';
+if (SEASON[params.get('season')]) state.season = params.get('season');
+const save = () => { if (params.has('demo')) return; try { localStorage.setItem(STORE, JSON.stringify(state)); } catch (e) {} };
+
+// three stacked layers: the painting (2D), grass + flowers (WebGL), seeds + particles (2D)
+const canvas = document.getElementById('scene'), ctx = canvas.getContext('2d');
+const grassCv = document.getElementById('grass');
+const fxCv = document.getElementById('fx'), fx = fxCv.getContext('2d');
+const staticCv = document.createElement('canvas'), sctx = staticCv.getContext('2d');   // hills, transparent above the skyline
+const skyCv = document.createElement('canvas'), kctx = skyCv.getContext('2d');          // sky backdrop
+let fadeCv = null, fadeStart = 0, sceneDirty = true;
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)');
+
+// the painting covers the window like background-size: cover (IW x IH at OX, OY)
+let W = 0, H = 0, DPR = 1, IW = 1, IH = 1, OX = 0, OY = 0, U = 1, AREA = 1, quality = 1, ready = false;
+const X = fx => OX + fx * IW, Y = fy => OY + fy * IH;
+let flowerHits = [], seeds = [], particles = [], SPRITES = [];
+const growing = new Map();   // entry id -> start time of its growth animation
+
+/* ------------------------------------------------------------------ *
+ *  Painting layer (baked once per size / season)
+ * ------------------------------------------------------------------ */
+const SIMG = {}, pending = {};
+// a painted sky, in two pieces drawn at the painting's size: the backdrop (gradient + brush marks)
+// and a tile of clouds that wraps horizontally so it can drift in a loop
+function paintSky(name, w, h) {
+  const P = SKY[name], R = mulberry32(5 + name.length * 31), ch = Math.floor(h * .5);
+  const mk = (cw, chh) => { const cv = document.createElement('canvas'); cv.width = cw; cv.height = chh; return cv; };
+  const mix = (a, b, k) => { const x = hexRgb(a), y = hexRgb(b); return `rgb(${x.map((v, i) => Math.round(v + (y[i] - v) * k))})`; };
+  const stroke = (c, x, y, len, wid, col, al, bend) => {
+    c.globalAlpha = al; c.strokeStyle = col; c.lineWidth = wid; c.lineCap = 'round';
+    c.beginPath(); c.moveTo(x, y); c.quadraticCurveTo(x + len / 2, y + bend, x + len, y + bend * .3); c.stroke();
+  };
+  // backdrop
+  const sky = mk(w, ch), sc = sky.getContext('2d');
+  const g = sc.createLinearGradient(0, 0, 0, ch * .94);
+  g.addColorStop(0, P.g[0]); g.addColorStop(.55, P.g[1]); g.addColorStop(1, P.g[2]);
+  sc.fillStyle = g; sc.fillRect(0, 0, w, ch);
+  sc.globalAlpha = 1;
+  // clouds
+  const clouds = document.createElement('canvas'); clouds.width = w; clouds.height = ch;
+  const c = clouds.getContext('2d');
+  const blob = (x, y, r, col) => {   // flat, slightly lumpy shape: no blur, so it reads as paint
+    const n = 13, pts = [];
+    for (let i = 0; i < n; i++) { const a = i / n * TAU, rr = r * (.84 + .3 * R()); pts.push([x + Math.cos(a) * rr, y + Math.sin(a) * rr * .86]); }
+    c.fillStyle = col; c.beginPath();
+    c.moveTo((pts[0][0] + pts[n - 1][0]) / 2, (pts[0][1] + pts[n - 1][1]) / 2);
+    for (let i = 0; i < n; i++) { const p = pts[i], q = pts[(i + 1) % n]; c.quadraticCurveTo(p[0], p[1], (p[0] + q[0]) / 2, (p[1] + q[1]) / 2); }
+    c.fill();
+  };
+  const defs = [];
+  for (let i = 0; i < P.n; i++) {
+    const hz = (i * .618 + .15 + R() * .18) % 1, sz = .6 + .6 * R();   // heights spread evenly (golden-ratio steps), so neighbours differ
+    const cs = Math.min(w * .09 * sz * (.7 + .6 * R()), w / P.n * .4);   // each cloud stays inside its own slot, so neighbours never touch
+    // big clouds sit lower so the top crop never cuts them
+    defs.push({ x: w * ((i + .5 + (R() - .5) * .3) / P.n), y: Math.min(ch * .84, Math.max(ch * (.34 + .5 * hz), cs * 1.05 + ch * .2)), s: cs, seed: R() });
+  }
+  const mid = mix(P.sh, P.hi, .55);
+  for (const cl of defs.sort((a, b) => a.y - b.y)) for (const dx of [-w, 0, w]) {   // draw wrapped copies so the tile loops seamlessly
+    const x0 = cl.x + dx; if (x0 < -cl.s * 3 || x0 > w + cl.s * 3) continue;
+    const rr = mulberry32(Math.floor(cl.seed * 1e6)), n = 8 + (cl.seed * 5 | 0), pf = [];
+    for (let i = 0; i < n; i++) {
+      const u = i / (n - 1) * 2 - 1, hump = 1 - u * u;
+      pf.push({ x: x0 + u * cl.s * 1.1 + (rr() - .5) * cl.s * .2, y: cl.y - hump * cl.s * (.16 + .3 * rr()), r: cl.s * (.26 + .32 * hump * (.6 + .6 * rr())) });
+    }
+    c.globalAlpha = 1;
+    for (const p of pf) blob(p.x + p.r * .04, p.y + p.r * .22, p.r * 1.0, P.sh);
+    for (const p of pf) blob(p.x - p.r * .08, p.y + p.r * .02, p.r * .9, mid);
+    for (const p of pf) blob(p.x - p.r * .16, p.y - p.r * .22, p.r * .68, P.hi);
+    c.globalAlpha = 1;
+  }
+  // thin wisps, also painted as strokes
+  c.globalAlpha = 1;
+  return { sky, clouds };
+}
+// key the flat sky colour out of the painting and tidy the skyline: find the top of the hills in each
+// column, cut the stray marks above it, soften the edge a touch, and un-tint the teal fringe
+// cut each season's painting with the clean hand-made hill mask (assets/meadow-mask.png): its alpha
+// is the silhouette, the season's own painting supplies the colour. stray marks above the skyline are dropped
+function maskHills(name, im, mask) {
+  const w = im.width, h = im.height, t = document.createElement('canvas'); t.width = w; t.height = h;
+  const tc = t.getContext('2d'); tc.drawImage(im, 0, 0);
+  const m = document.createElement('canvas'); m.width = w; m.height = h;
+  const mc = m.getContext('2d'); mc.imageSmoothingQuality = 'high'; mc.drawImage(mask, 0, 0, w, h);
+  const img = tc.getImageData(0, 0, w, h), md = mc.getImageData(0, 0, w, h).data, d = img.data;
+  const top = new Int32Array(w);
+  for (let x = 0; x < w; x++) {
+    let run = 0; top[x] = h;
+    for (let y = Math.floor(h * .3); y < h; y++) { run = md[(y * w + x) * 4 + 3] > 128 ? run + 1 : 0; if (run >= 10) { top[x] = y - 9; break; } }
+  }
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { const o = (y * w + x) * 4; d[o + 3] = y < top[x] - 3 ? 0 : y > top[x] + 5 ? 255 : md[o + 3]; }   // solid below the skyline: no sky showing through creases
+  if (name === 'autumn') for (let i = 0; i < w * h; i++) {   // the painting's teal creases turn pale blue here: recolour them gold, keeping their brightness
+    const o = i * 4, r = d[o], g = d[o + 1], bl = d[o + 2], k = Math.max(smooth(-45, -15, bl - r), smooth(-10, 0, g - r));
+    if (k <= 0 || !d[o + 3]) continue;
+    const L = .3 * r + .59 * g + .11 * bl;
+    d[o] += (Math.min(255, L * 1.2) - r) * k; d[o + 1] += (Math.min(255, L) - g) * k; d[o + 2] += (L * .42 - bl) * k;
+  }
+  tc.putImageData(img, 0, 0);
+  return t;
+}
+function cleanHills(name, im) {
+  const w = im.width, h = im.height, t = document.createElement('canvas'); t.width = w; t.height = h;
+  const tc = t.getContext('2d'); tc.drawImage(im, 0, 0);
+  const lim = Math.floor(h * .52), px = tc.getImageData(0, 0, w, lim), d = px.data;
+  const [sr, sg, sb] = hexRgb(({ spring: '#87c3cc', summer: '#8dc4ca', autumn: '#a2c2be', winter: '#acc9d1' })[name]);
+  const A = new Float32Array(w * lim), [LO, HI] = name === 'winter' ? [8, 18] : [22, 48];
+  for (let i = 0; i < w * lim; i++) A[i] = smooth(LO, HI, Math.hypot(d[i * 4] - sr, d[i * 4 + 1] - sg, d[i * 4 + 2] - sb));
+  // topmost solid run per column
+  const top = new Float32Array(w), y0 = Math.floor(h * .3);
+  for (let x = 0; x < w; x++) {
+    let y = y0, run = 0; top[x] = lim;
+    for (; y < lim; y++) { run = A[y * w + x] > .5 ? run + 1 : 0; if (run >= 8) { top[x] = y - 7; break; } }
+  }
+  // the hills are soft, so ignore individual tufts: wide median, then a wide moving average
+  const med = new Float32Array(w), sm = new Float32Array(w), MR = 22;
+  for (let x = 0; x < w; x++) { const v = []; for (let k = -MR; k <= MR; k++) v.push(top[clamp(x + k, 0, w - 1)]); med[x] = v.sort((a, b) => a - b)[MR]; }
+  for (let x = 0; x < w; x++) { let a = 0; for (let k = -16; k <= 16; k++) a += med[clamp(x + k, 0, w - 1)]; sm[x] = a / 33; }
+  // the painted haze leaves a darker, bluish crust along every ridge. take the hill's own colour from a
+  // little further down (per column, then blurred sideways) and blend the crust into it
+  const BAND = 36, int = new Float32Array(w * 3), tmp = new Float32Array(w * 3);
+  for (let x = 0; x < w; x++) {
+    const y1 = Math.min(lim - 1, Math.round(sm[x]) + BAND + 4), y2 = Math.min(lim - 1, y1 + 22); let n = 0;
+    for (let y = y1; y <= y2; y++) { const o = (y * w + x) * 4; for (let k = 0; k < 3; k++) tmp[x * 3 + k] += d[o + k]; n++; }
+    for (let k = 0; k < 3; k++) tmp[x * 3 + k] /= Math.max(1, n);
+  }
+  for (let x = 0; x < w; x++) for (let k = 0; k < 3; k++) { let a = 0; for (let j = -24; j <= 24; j++) a += tmp[clamp(x + j, 0, w - 1) * 3 + k]; int[x * 3 + k] = a / 49; }
+  for (let y = 0; y < lim; y++) for (let x = 0; x < w; x++) {
+    const i = y * w + x, o = i * 4, dy = y + .5 - sm[x];
+    let a = smooth(-1.2, 1.2, dy);   // crisp, slightly soft cut along the smoothed skyline
+    if (a <= 0) { d[o + 3] = 0; continue; }
+    if (dy < BAND) {   // strongest at the edge, fading out into the painting
+      const m = .98 * Math.pow(1 - clamp(dy, 0, BAND) / BAND, .8);
+      for (let k = 0; k < 3; k++) d[o + k] += (int[x * 3 + k] - d[o + k]) * m;
+    }
+    d[o + 3] = Math.round(255 * a);
+  }
+  tc.putImageData(px, 0, 0);
+  const out = document.createElement('canvas'); out.width = w; out.height = h;
+  const oc = out.getContext('2d'); oc.drawImage(t, 0, 0);
+  return out;
+}
+const maskP = loadImg('assets/meadow-mask.png');   // null if missing: falls back to keying the sky colour
+function loadSeason(name) {
+  if (!pending[name]) pending[name] = Promise.all([loadImg(`assets/meadow-${name}.jpg`), maskP]).then(([bg, mask]) => {
+    if (!bg || !SKY[name]) return (SIMG[name] = { hills: bg });
+    return (SIMG[name] = { hills: mask ? maskHills(name, bg, mask) : cleanHills(name, bg), ...paintSky(name, bg.width, bg.height), nh: bg.height });
+  });
+  return pending[name];
+}
+function bake() {
+  const S = SIMG[state.season];
+  if (!S || !W) return;
+  for (const [cv, c] of [[skyCv, kctx], [staticCv, sctx]]) {
+    c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, cv.width, cv.height); c.setTransform(DPR, 0, 0, DPR, 0, 0); c.imageSmoothingQuality = 'high';
+  }
+  kctx.fillStyle = SEASON[state.season].sky; kctx.fillRect(0, 0, W, H);
+  if (S.sky) kctx.drawImage(S.sky, OX, OY, IW, IH * S.sky.height / S.nh);
+  if (S.hills) sctx.drawImage(S.hills, OX, OY, IW, IH);
+  sceneDirty = true;
+}
+function drawScene(now) {
+  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 1;
+  ctx.drawImage(skyCv, 0, 0);
+  const S = SIMG[state.season];
+  if (S && S.clouds) {   // clouds drift left to right, one lap of the painting in ~5 minutes
+    const off = FROZEN || reduceMotion.matches ? 0 : ((now - t0) / 1000 * IW / 300) % IW;
+    const ch = IH * S.clouds.height / S.nh;
+    for (const x of [OX + off - IW, OX + off]) ctx.drawImage(S.clouds, x * DPR, OY * DPR, IW * DPR, ch * DPR);
+  }
+  ctx.drawImage(staticCv, 0, 0);
+  sceneDirty = false;
+  if (fadeCv) {
+    const k = (now - fadeStart) / (reduceMotion.matches ? 300 : 1300);
+    if (k >= 1) { fadeCv = null; return; }
+    ctx.globalAlpha = 1 - ease(k); ctx.drawImage(fadeCv, 0, 0); ctx.globalAlpha = 1;
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ *  Wind — big gusts rolling across the field plus a fine ripple.
+ *  The same formula runs in the blade shader (WIND_GLSL) and here, so
+ *  flower heads stay on the tips of their stems.
+ * ------------------------------------------------------------------ */
+function wind(x, y, t) {
+  const u = x / U + y / U * .35;
+  let g = .5 + .5 * Math.sin(u * .011 - t * .85 + 1.3 * Math.sin(u * .0027 + t * .21));
+  g = g * g * g;
+  return .25 + .12 * Math.sin(t * .37) + .75 * g + .08 * Math.sin(u * .07 - t * 2.6);
+}
+const WIND_GLSL = `
+float wind(vec2 p, float t) {
+  float u = p.x / uU + p.y / uU * .35;
+  float g = .5 + .5 * sin(u * .011 - t * .85 + 1.3 * sin(u * .0027 + t * .21));
+  g = g * g * g;
+  return .25 + .12 * sin(t * .37) + .75 * g + .08 * sin(u * .07 - t * 2.6);
+}`;
+// sideways displacement of a blade's tip; the shader bends the blade along h^2
+const bladeDisp = (x, y, len, lean, flex, ph, t) => lean + wind(x, y, t) * flex * len * .32 + Math.sin(t * 2.2 + ph) * len * .03 * flex;
+function bladeTip(x, y, len, lean, flex, ph, t) {
+  const d = bladeDisp(x, y, len, lean, flex, ph, t), k = d / len;
+  return [x + d, y - len * (1 - .5 * Math.min(1, k * k))];
+}
+
+/* ------------------------------------------------------------------ *
+ *  WebGL grass layer
+ * ------------------------------------------------------------------ */
+const BLADE_VS = `#version 300 es
+layout(location = 0) in vec2 aV;      // x: side (-1 / 1), y: height along the blade (0 base .. 1 tip)
+layout(location = 1) in vec4 aBase;   // base x, base y (CSS px), length, width
+layout(location = 2) in vec4 aShape;  // lean, flex, phase, alpha
+layout(location = 3) in vec3 aTone;   // distance band, tone, shade
+uniform vec2 uRes; uniform float uT, uU, uMix;
+uniform vec3 uPalA[15], uPalB[15];
+out vec3 vCol; out float vA, vSide;
+${WIND_GLSL}
+void main() {
+  float h = aV.y, len = aBase.z;
+  float d = aShape.x + wind(aBase.xy, uT) * aShape.y * len * .32 + sin(uT * 2.2 + aShape.z) * len * .03 * aShape.y;
+  float k = d / len, s = 1. - .5 * min(1., k * k);
+  vec2 p = vec2(aBase.x + d * h * h, aBase.y - len * h * s);
+  vec2 n = normalize(vec2(len * s, 2. * h * d));
+  float taper = pow(1. - h, .85) * (h < .1 ? .7 + 3. * h : 1.);
+  p += n * aV.x * aBase.w * .5 * taper;
+  gl_Position = vec4(p.x / uRes.x * 2. - 1., 1. - p.y / uRes.y * 2., 0., 1.);
+  int i = int(aTone.x) * 5;
+  vec3 mid = mix(uPalA[i + 2], uPalB[i + 2], uMix);
+  vec3 tip = mix(mix(uPalA[i + int(aTone.y)], uPalB[i + int(aTone.y)], uMix), mid, .3);   // pull extremes toward the mid tone: softer contrast
+  vec3 root = mix(mix(uPalA[i + 1], uPalB[i + 1], uMix), tip, .65) * .99;   // shaded base, where blades crowd each other
+  vCol = mix(root, tip, smoothstep(0., .75, h)) * (1. + aTone.z * .045);
+  vA = aShape.w * (1. - .3 * h * h) * .9; vSide = aV.x;
+}`;
+const BLADE_FS = `#version 300 es
+precision mediump float;
+in vec3 vCol; in float vA, vSide;
+out vec4 o;
+void main() { o = vec4(vCol * (1. + .03 * vSide), 1.) * vA; }`;
+const FLOWER_VS = `#version 300 es
+layout(location = 0) in vec2 aV;      // quad corner, -.5 .. .5
+layout(location = 1) in vec4 aBox;    // centre x, y, width, height (CSS px)
+layout(location = 2) in vec3 aRot;    // rotation, sprite, alpha
+uniform vec2 uRes; uniform vec4 uRect[3];
+out vec2 vUv; out float vA;
+void main() {
+  float c = cos(aRot.x), s = sin(aRot.x);
+  vec2 q = aV * aBox.zw;
+  vec2 p = aBox.xy + vec2(q.x * c - q.y * s, q.x * s + q.y * c);
+  gl_Position = vec4(p.x / uRes.x * 2. - 1., 1. - p.y / uRes.y * 2., 0., 1.);
+  vec4 r = uRect[int(aRot.y)];
+  vUv = mix(r.xy, r.zw, aV + .5); vA = aRot.z;
+}`;
+const FLOWER_FS = `#version 300 es
+precision mediump float;
+uniform sampler2D uTex;
+in vec2 vUv; in float vA;
+out vec4 o;
+void main() { o = texture(uTex, vUv) * vA; }`;
+
+const BLADE_SEGS = 5, BLADE_VERTS = (BLADE_SEGS + 1) * 2, BSTRIDE = 12, FSTRIDE = 8, NSLICE = 8;
+let gl = null, G = {};
+let BLADE_N = 0, BLADE_START = [], SLICE_Y = [];
+let palA = null, palB = null, palMixStart = -1;
+const flatPal = name => new Float32Array(['far', 'mid', 'near'].flatMap(b => PALETTE[name][b].flatMap(h => hexRgb(h).map(v => v / 255))));
+
+function initGL() {
+  try {
+    gl = grassCv.getContext('webgl2', { antialias: true, premultipliedAlpha: true, alpha: true });
+    if (!gl) { showDiag('Grass layer off: this browser did not give WebGL2.'); return false; }
+    const program = (vs, fs) => {
+      const p = gl.createProgram();
+      for (const [type, src] of [[gl.VERTEX_SHADER, vs], [gl.FRAGMENT_SHADER, fs]]) {
+        const sh = gl.createShader(type); gl.shaderSource(sh, src); gl.compileShader(sh);
+        if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(sh));
+        gl.attachShader(p, sh);
+      }
+      gl.linkProgram(p);
+      if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p));
+      return p;
+    };
+    G.blade = program(BLADE_VS, BLADE_FS); G.flower = program(FLOWER_VS, FLOWER_FS);
+    const loc = (p, n) => gl.getUniformLocation(p, n);
+    G.bu = { res: loc(G.blade, 'uRes'), t: loc(G.blade, 'uT'), u: loc(G.blade, 'uU'), mix: loc(G.blade, 'uMix'), a: loc(G.blade, 'uPalA'), b: loc(G.blade, 'uPalB') };
+    G.fu = { res: loc(G.flower, 'uRes'), rect: loc(G.flower, 'uRect'), tex: loc(G.flower, 'uTex') };
+    // shared meshes: a blade is a strip of BLADE_SEGS segments, a flower is a quad
+    const mesh = [];
+    for (let i = 0; i <= BLADE_SEGS; i++) mesh.push(-1, i / BLADE_SEGS, 1, i / BLADE_SEGS);
+    G.bladeMesh = buffer(new Float32Array(mesh), gl.STATIC_DRAW);
+    G.quadMesh = buffer(new Float32Array([-.5, -.5, .5, -.5, -.5, .5, .5, .5]), gl.STATIC_DRAW);
+    G.bladeBuf = gl.createBuffer(); G.stemBuf = gl.createBuffer(); G.flowerBuf = gl.createBuffer();
+    G.bladeVAO = vao(G.bladeMesh, [4, 4, 3]); G.stemVAO = vao(G.bladeMesh, [4, 4, 3]); G.flowerVAO = vao(G.quadMesh, [4, 3]);
+    return true;
+  } catch (e) { console.warn('grass layer disabled:', e); showDiag('Grass layer could not start: ' + e.message); gl = null; return false; }
+}
+function buffer(data, usage) { const b = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, b); gl.bufferData(gl.ARRAY_BUFFER, data, usage); return b; }
+function vao(mesh, inst) {
+  const v = gl.createVertexArray(); gl.bindVertexArray(v);
+  gl.bindBuffer(gl.ARRAY_BUFFER, mesh); gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+  inst.forEach((_, i) => { gl.enableVertexAttribArray(i + 1); gl.vertexAttribDivisor(i + 1, 1); });
+  gl.bindVertexArray(null);
+  return v;
+}
+// point a VAO's per-instance attributes at instance `start` of buf (WebGL2 has no base-instance draw)
+function pointAt(v, buf, sizes, stride, start) {
+  gl.bindVertexArray(v); gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  let off = 0;
+  sizes.forEach((n, i) => { gl.vertexAttribPointer(i + 1, n, gl.FLOAT, false, stride * 4, (start * stride + off) * 4); off += n; });
+}
+
+// flower sprites: trim transparent padding and pack into one texture
+function buildAtlas(images) {
+  const trimmed = images.map(im => {
+    const c = document.createElement('canvas'); c.width = im.width; c.height = im.height;
+    const x = c.getContext('2d'); x.drawImage(im, 0, 0);
+    const d = x.getImageData(0, 0, c.width, c.height).data;
+    let x0 = c.width, y0 = c.height, x1 = 0, y1 = 0;
+    for (let y = 0; y < c.height; y++) for (let i = 0; i < c.width; i++) if (d[(y * c.width + i) * 4 + 3] > 8) { if (i < x0) x0 = i; if (i > x1) x1 = i; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+    const p = 3; x0 = Math.max(0, x0 - p); y0 = Math.max(0, y0 - p); x1 = Math.min(c.width - 1, x1 + p); y1 = Math.min(c.height - 1, y1 + p);
+    const t = document.createElement('canvas'); t.width = x1 - x0 + 1; t.height = y1 - y0 + 1;
+    t.getContext('2d').drawImage(c, x0, y0, t.width, t.height, 0, 0, t.width, t.height);
+    return t;
+  });
+  const gap = 4, aw = trimmed.reduce((s, t) => s + t.width + gap, gap), ah = Math.max(...trimmed.map(t => t.height)) + gap * 2;
+  const atlas = document.createElement('canvas'); atlas.width = aw; atlas.height = ah;
+  const ax = atlas.getContext('2d');
+  let x = gap;
+  SPRITES = trimmed.map(t => {
+    ax.drawImage(t, x, gap);
+    const s = { cv: t, w: t.width, h: t.height, rect: [x / aw, gap / ah, (x + t.width) / aw, (gap + t.height) / ah] };
+    x += t.width + gap;
+    return s;
+  });
+  if (!gl) return;
+  G.tex = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, G.tex);
+  gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, atlas);
+  gl.generateMipmap(gl.TEXTURE_2D);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+}
+
+// scatter blades row by row from the skyline down: tiny and faint on the far hills,
+// a dense carpet of long blades in the foreground. Rows run far -> near, so the buffer is depth-sorted.
+function gen() {
+  SLICE_Y = []; for (let i = 1; i < NSLICE; i++) SLICE_Y.push(Y(.42 + .58 * Math.pow(i / NSLICE, .8)));
+  if (!gl) return;
+  const R = mulberry32(11), out = [], step = 2, dens = .9 * quality;
+  let yTop = H;
+  for (let x = 0; x <= W; x += 8) yTop = Math.min(yTop, Y(skyline((x - OX) / IW)));
+  BLADE_START = [0];
+  for (let y = Math.floor(yTop); y < H + 2; y += step) {
+    while (BLADE_START.length <= SLICE_Y.length && y > SLICE_Y[BLADE_START.length - 1]) BLADE_START.push(out.length / BSTRIDE);
+    const fy = (y - OY) / IH, p = persp(fy);
+    const len = IH * (.006 + .09 * Math.pow(p, 1.3)), wid = Math.max(.75, len * .06);
+    const n = dens * (.06 + 1.5 * Math.pow(p, 1.6)) * W * step / (len * wid * .55);
+    const cnt = Math.floor(n) + (R() < n % 1 ? 1 : 0), alpha = .16 + .84 * smooth(.03, .4, p);
+    for (let i = 0; i < cnt; i++) {
+      const x = R() * W, fx = (x - OX) / IW;
+      if (y < Y(skyline(fx)) + 1.5) continue;
+      const l = len * (.55 + .8 * R()), gt = groundTop(fx), sunny = fy > gt - .03 && fy < gt + .07, r = R();
+      let tone = r < .1 ? 0 : r < .35 ? 1 : r < .72 ? 2 : 3;
+      if (p < .3 && tone === 0) tone = 2;   // no deep shadows on the far hills
+      if (sunny && R() < .35) tone = 4;
+      const band = clamp(Math.floor(p * 3 + (R() - .5) * .8), 0, 2);
+      out.push(x, y + R() * step, l, wid * (.7 + .6 * R()), l * (-.12 + .42 * R()), .6 + .8 * R(), R() * TAU, alpha, band, tone, R() * 2 - 1, 0);
+    }
+  }
+  BLADE_N = out.length / BSTRIDE;
+  while (BLADE_START.length <= NSLICE) BLADE_START.push(BLADE_N);
+  gl.bindBuffer(gl.ARRAY_BUFFER, G.bladeBuf); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(out), gl.STATIC_DRAW);
+  window.__blades = BLADE_N;
+  if (params.has('debug')) showDiag('grass blades: ' + BLADE_N + '  (WebGL ' + (gl.getParameter(gl.VERSION)) + ')');
+}
+const sliceOf = y => { let i = 0; while (i < SLICE_Y.length && y > SLICE_Y[i]) i++; return i; };
+
+/* ------------------------------------------------------------------ *
+ *  Flowers — a stem (drawn like a blade) with a sprite head on its tip
+ * ------------------------------------------------------------------ */
+const visBottom = () => Math.min(.95, (H - OY) / IH - .04);
+// resting head position and size of a planted flower
+function flowerPos(e) {
+  let fy = e.fy;
+  if (fy == null) { const top = groundTop(e.fx) + .025; fy = top + e.d * Math.max(0, visBottom() - top); }   // older saves
+  return { x: X(e.fx), y: Y(fy), s: flowerSize(fy) * (.8 + .4 * mulberry32(e.seed)()) };
+}
+function flowerItems(t, now) {
+  const items = [];
+  if (!SPRITES.length) return items;
+  const add = (x, y, s, k, tilt, seed, g, e) => {
+    const p = persp((y - OY) / IH), r = mulberry32(seed + 7), L0 = s * (.45 + .85 * p) * (1 + .4 * r()), lean = s * (r() - .4) * .3, ph = (seed % 628) / 100;
+    const stemG = reduceMotion.matches ? 1 : ease(g / .6), headG = reduceMotion.matches ? 1 : easeBack((g - .3) / .7);
+    const gx = x - lean, gy = y + L0, L = Math.max(.5, L0 * stemG);   // stem base sits below the resting head
+    const [hx, hy] = bladeTip(gx, gy, L, lean, .5, ph, t);
+    items.push({ gx, gy, L, lean, ph, hx, hy, s, k, rot: tilt + (hx - x) / L0 * .5, scale: headG, alpha: clamp(g * 3, 0, 1), p, e });
+  };
+  PAINTED.forEach(([fx, fy, k, m, tilt], i) => add(X(fx), Y(fy), flowerSize(fy) * m, k, tilt, 900 + i, 1, null));
+  for (const e of state.entries) {
+    let g = 1;
+    if (growing.has(e.id)) {
+      const st = growing.get(e.id);
+      if (st > now) continue;           // seed still drifting in
+      g = (now - st) / 1400; if (g >= 1) { growing.delete(e.id); g = 1; }
+    }
+    const k = e.seed % 3, { x, y, s } = flowerPos(e);
+    add(x, y, s, k, (mulberry32(e.seed + 1)() - .5) * (k === 2 ? .3 : .6), e.seed, g, e);
+  }
+  items.sort((a, b) => a.gy - b.gy);
+  return items;
+}
+const headBox = f => { const sp = SPRITES[f.k], m = f.s / Math.max(sp.w, sp.h) * f.scale; return [sp.w * m, sp.h * m]; };
+
+function drawGrass(t, now) {
+  const items = flowerItems(t, now);
+  flowerHits = items.filter(f => f.e).map(f => ({ x: f.hx, y: f.hy, r: Math.max(14, f.s * .6), e: f.e }));
+  if (!gl) {   // no WebGL: flowers only, on the 2D layer
+    for (const f of items) {
+      const [w, h] = headBox(f);
+      fx.save(); fx.translate(f.hx, f.hy); fx.rotate(f.rot); fx.globalAlpha = f.alpha; fx.drawImage(SPRITES[f.k].cv, -w / 2, -h / 2, w, h); fx.restore();
+    }
+    return;
+  }
+  const stems = new Float32Array(items.length * BSTRIDE), heads = new Float32Array(items.length * FSTRIDE);
+  items.forEach((f, i) => {
+    const band = f.p < .33 ? 0 : f.p < .66 ? 1 : 2, [w, h] = headBox(f);
+    stems.set([f.gx, f.gy, f.L, Math.max(.8, f.s * .07), f.lean, .5, f.ph, f.alpha * (.5 + .5 * smooth(.05, .4, f.p)), band, 2, 0, 0], i * BSTRIDE);
+    heads.set([f.hx, f.hy, w, h, f.rot, f.k, f.alpha, 0], i * FSTRIDE);
+  });
+  gl.bindBuffer(gl.ARRAY_BUFFER, G.stemBuf); gl.bufferData(gl.ARRAY_BUFFER, stems, gl.DYNAMIC_DRAW);
+  gl.bindBuffer(gl.ARRAY_BUFFER, G.flowerBuf); gl.bufferData(gl.ARRAY_BUFFER, heads, gl.DYNAMIC_DRAW);
+
+  gl.viewport(0, 0, grassCv.width, grassCv.height);
+  gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
+  gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+  const mix = palMixStart < 0 ? 1 : ease((now - palMixStart) / (reduceMotion.matches ? 300 : 1300));
+  gl.useProgram(G.blade);
+  gl.uniform2f(G.bu.res, W, H); gl.uniform1f(G.bu.t, t); gl.uniform1f(G.bu.u, U); gl.uniform1f(G.bu.mix, mix);
+  gl.uniform3fv(G.bu.a, palA); gl.uniform3fv(G.bu.b, palB);
+  gl.useProgram(G.flower);
+  gl.uniform2f(G.fu.res, W, H); gl.uniform4fv(G.fu.rect, SPRITES.flatMap(s => s.rect)); gl.uniform1i(G.fu.tex, 0);
+  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, G.tex);
+
+  // far to near: blades of a slice, then the stems and flowers rooted in it
+  let fi = 0;
+  for (let s = 0; s < NSLICE; s++) {
+    const b0 = BLADE_START[s], bn = BLADE_START[s + 1] - b0;
+    let f1 = fi; while (f1 < items.length && sliceOf(items[f1].gy) <= s) f1++;
+    gl.useProgram(G.blade);
+    if (bn > 0) { pointAt(G.bladeVAO, G.bladeBuf, [4, 4, 3], BSTRIDE, b0); gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, BLADE_VERTS, bn); }
+    if (f1 > fi) {
+      pointAt(G.stemVAO, G.stemBuf, [4, 4, 3], BSTRIDE, fi); gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, BLADE_VERTS, f1 - fi);
+      gl.useProgram(G.flower);
+      pointAt(G.flowerVAO, G.flowerBuf, [4, 3], FSTRIDE, fi); gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, f1 - fi);
+    }
+    fi = f1;
+  }
+  gl.bindVertexArray(null);
+}
+
+/* ------------------------------------------------------------------ *
+ *  Seeds drifting from the input to the meadow, and season particles
+ * ------------------------------------------------------------------ */
+function drawSeeds(c, now) {
+  seeds = seeds.filter(sd => now < sd.t0 + sd.dur);
+  for (const sd of seeds) {
+    const t = clamp((now - sd.t0) / sd.dur, 0, 1), e = t < .5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+    const mt = 1 - e;
+    const x = mt * mt * sd.x0 + 2 * mt * e * sd.cx + e * e * sd.x1 + Math.sin(t * 9) * 6 * U * (1 - t);
+    const y = mt * mt * sd.y0 + 2 * mt * e * sd.cy + e * e * sd.y1;
+    c.save(); c.translate(x, y); c.rotate(t * 7);
+    c.beginPath(); c.ellipse(0, 0, 3.2 * U, 1.8 * U, 0, 0, TAU);
+    c.fillStyle = rgba(sd.color, .95 * Math.min(1, t * 6)); c.fill();
+    c.restore();
+  }
+}
+const windAt = x => wind(x, H * .7, (performance.now() - t0) / 1000) - .5;
+function spawnParticle(kind, initial) {
+  const R = Math.random;
+  if (kind === 'snow') return { k: kind, x: R() * W, y: initial ? R() * H : -10, r: (.7 + 2.4 * R() * R() + 1.1 * R()) * U, vy: (13 + 22 * R()) * U / 1.5, ph: R() * TAU, a: .55 + .4 * R() };
+  if (kind === 'motes') return { k: kind, x: R() * W, y: H * (.36 + .55 * R()), r: (.8 + 1.2 * R()) * U, ph: R() * TAU, sp: .6 + R(), vx: (2 + 5 * R()) * U, life: 0, max: 9 + 8 * R() };
+  if (kind === 'petals') return { k: kind, x: -20 + R() * W * .5, y: H * (.25 + .35 * R()), r: (2.6 + 1.6 * R()) * U, vx: (16 + 16 * R()) * U / 1.5, vy: (2 + 6 * R()) * U / 1.5, rot: R() * TAU, vr: (R() - .5) * 2, spin: R() * TAU, life: 0, max: 10 + 6 * R(), col: ['#f6dede', '#f4cfd2', '#ef9cc8'][R() * 3 | 0] };
+  return { k: 'leaves', x: -20 + R() * W * .7, y: -20 + R() * H * .35, r: (4 + 2.5 * R()) * U, vx: (18 + 18 * R()) * U / 1.5, vy: (10 + 10 * R()) * U / 1.5, rot: R() * TAU, vr: (R() - .5) * 2.4, spin: R() * TAU, life: 0, max: 14 + 6 * R(), col: ['#c99a4e', '#b07a45', '#9c6446', '#bfa05a'][R() * 4 | 0] };
+}
+function updateParticles(dt, t) {
+  const kind = SEASON[state.season].particles;
+  if (reduceMotion.matches || FROZEN) { particles = []; return; }
+  particles = particles.filter(p => p.k === kind);
+  if (kind === 'snow') { const n = Math.round(340 * AREA); while (particles.length < n) particles.push(spawnParticle(kind, true)); }
+  else if (kind === 'motes') { const n = Math.round(18 * AREA); while (particles.length < n) particles.push(spawnParticle(kind)); }
+  else if (Math.random() < dt * (kind === 'petals' ? .22 : .32) && particles.length < (kind === 'petals' ? 5 : 7)) particles.push(spawnParticle(kind));
+  for (const p of particles) {
+    const w = windAt(p.x) + .5;
+    if (p.k === 'snow') {
+      p.y += p.vy * dt; p.x += (6 + 18 * w) * U / 1.5 * dt + Math.sin(t * .8 + p.ph) * .25 * U;
+      if (p.y > H + 5) { p.y = -5; p.x = Math.random() * W; } if (p.x > W + 5) p.x = -5;
+    } else if (p.k === 'motes') {
+      p.life += dt; p.x += p.vx * w * dt; p.y += Math.sin(t * .5 * p.sp + p.ph) * .12 * U;
+      if (p.life > p.max || p.x > W + 5) Object.assign(p, spawnParticle('motes'));
+    } else {
+      p.life += dt; p.x += p.vx * (.4 + w) * dt; p.y += (p.vy + Math.sin(t * 1.3 + p.spin) * 4 * U) * dt;
+      p.rot += p.vr * dt; p.spin += dt * 2.2;
+    }
+  }
+  particles = particles.filter(p => p.k === 'snow' || p.k === 'motes' || (p.life < p.max && p.x < W + 30 && p.y < H + 30));
+}
+function drawParticles(c, t) {
+  for (const p of particles) {
+    if (p.k === 'snow') {
+      if (p.r > 2 * U) { c.beginPath(); c.arc(p.x, p.y, p.r * 1.9, 0, TAU); c.fillStyle = `rgba(255,255,255,${p.a * .18})`; c.fill(); }
+      c.beginPath(); c.arc(p.x, p.y, p.r, 0, TAU); c.fillStyle = `rgba(255,255,255,${p.a})`; c.fill(); continue;
+    }
+    if (p.k === 'motes') {
+      const a = clamp(Math.min(p.life, p.max - p.life) / 2, 0, 1) * (.35 + .3 * Math.sin(t * 2 * p.sp + p.ph));
+      c.beginPath(); c.arc(p.x, p.y, p.r * 2.6, 0, TAU); c.fillStyle = `rgba(255,246,210,${a * .25})`; c.fill();
+      c.beginPath(); c.arc(p.x, p.y, p.r, 0, TAU); c.fillStyle = `rgba(255,250,228,${a})`; c.fill(); continue;
+    }
+    const a = clamp(Math.min(p.life, p.max - p.life) / 1.5, 0, 1);
+    c.save(); c.translate(p.x, p.y); c.rotate(p.rot); c.scale(1, .35 + .65 * Math.abs(Math.cos(p.spin)));
+    c.globalAlpha = a * (p.k === 'leaves' ? .6 : 1); c.fillStyle = p.col;
+    if (p.k === 'leaves') {
+      c.beginPath(); c.moveTo(-p.r, 0); c.quadraticCurveTo(0, -p.r * .7, p.r, 0); c.quadraticCurveTo(0, p.r * .7, -p.r, 0); c.fill();
+      c.strokeStyle = rgba('#6e4020', .2); c.lineWidth = .5 * U; c.beginPath(); c.moveTo(-p.r * .8, 0); c.lineTo(p.r * .8, 0); c.stroke();
+    } else { c.beginPath(); c.ellipse(0, 0, p.r, p.r * .62, 0, 0, TAU); c.fill(); }
+    c.restore();
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ *  Frame loop
+ * ------------------------------------------------------------------ */
+const t0 = performance.now();
+let lastNow = t0, frameTimes = [], firstFrame = true;
+function frame(now) {
+  if (!W) { if (window.innerWidth && window.innerHeight) layout(); lastNow = now; requestAnimationFrame(frame); return; }
+  const dt = Math.min(.05, (now - lastNow) / 1000); lastNow = now;
+  const still = FROZEN || reduceMotion.matches;
+  const t = still ? 0 : (now - t0) / 1000;
+  if (fadeCv || sceneDirty || !still) drawScene(now);   // clouds drift, so the scene redraws every frame
+  fx.setTransform(1, 0, 0, 1, 0, 0); fx.clearRect(0, 0, fxCv.width, fxCv.height); fx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  drawGrass(t, now);
+  drawSeeds(fx, now);
+  updateParticles(dt, t); drawParticles(fx, t);
+  if (firstFrame) { firstFrame = false; window.__renderMs = Math.round(performance.now() - t0); document.documentElement.dataset.ready = '1'; }
+  // keep it smooth: if frames are consistently slow, draw fewer blades
+  frameTimes.push(dt);
+  if (frameTimes.length > 120) {
+    const avg = frameTimes.reduce((a, b) => a + b, 0) / frameTimes.length; frameTimes = [];
+    if (avg > .026 && quality > .3 && !document.hidden) { quality *= .6; gen(); }
+  }
+  requestAnimationFrame(frame);
+}
+
+/* ------------------------------------------------------------------ *
+ *  Layout
+ * ------------------------------------------------------------------ */
+function layout() {
+  W = window.innerWidth; H = window.innerHeight;
+  if (!W || !H) { W = H = 0; return; }   // hidden / zero-size window: wait for a real size
+  DPR = Math.min(2, window.devicePixelRatio || 1);
+  // cover the window with the 4:3 painting; when cropping vertically, trim more sky than grass
+  const s = Math.max(W / 4, H / 3);
+  IW = 4 * s; IH = 3 * s; OX = (W - IW) / 2; OY = (H - IH) * .35;
+  U = IH / 600; AREA = (W * H) / (1440 * 900);
+  for (const cv of [canvas, staticCv, skyCv, grassCv, fxCv]) { cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR); }
+  gen(); bake();
+}
+let resizeTimer = 0;
+window.addEventListener('resize', () => { if (!ready) return; clearTimeout(resizeTimer); resizeTimer = setTimeout(layout, 140); });
+
+/* ------------------------------------------------------------------ *
+ *  Seasons
+ * ------------------------------------------------------------------ */
+const dots = [...document.querySelectorAll('.dot')], label = document.getElementById('seasonLabel');
+let labelTimer = 0;
+function showLabel(name, ms) {
+  label.textContent = name; label.classList.add('show');
+  clearTimeout(labelTimer); if (ms) labelTimer = setTimeout(() => label.classList.remove('show'), ms);
+}
+function setSeason(name, animate) {
+  if (!SEASON[name]) return;
+  state.season = name;
+  document.body.style.background = SEASON[name].sky; document.querySelector('meta[name=theme-color]').content = SEASON[name].sky;
+  dots.forEach(d => d.setAttribute('aria-pressed', String(d.dataset.season === name)));
+  particles = [];
+  loadSeason(name).then(() => {
+    if (state.season !== name) return;
+    if (animate && ready && W) {   // cross-fade the painting and the grass colours
+      fadeCv = fadeCv || document.createElement('canvas');
+      fadeCv.width = canvas.width; fadeCv.height = canvas.height;
+      fadeCv.getContext('2d').drawImage(canvas, 0, 0); fadeStart = performance.now();
+      palA = palB; palB = flatPal(name); palMixStart = fadeStart;
+    } else { palA = palB = flatPal(name); palMixStart = -1; }
+    if (ready) bake();
+  });
+}
+dots.forEach(d => {
+  d.addEventListener('click', () => { if (state.season !== d.dataset.season) { setSeason(d.dataset.season, true); save(); } showLabel(d.dataset.season, 1400); });
+  d.addEventListener('mouseenter', () => showLabel(d.dataset.season));
+  d.addEventListener('focus', () => showLabel(d.dataset.season));
+  d.addEventListener('mouseleave', () => showLabel(state.season, 10));
+  d.addEventListener('blur', () => label.classList.remove('show'));
+});
+
+/* ------------------------------------------------------------------ *
+ *  Planting gratitudes
+ * ------------------------------------------------------------------ */
+const input = document.getElementById('gratitude'), live = document.getElementById('live'), list = document.getElementById('list');
+const ui = document.getElementById('ui'), pillEl = document.getElementById('pill');
+function pickSpot() {
+  const others = state.entries.map(flowerPos).concat(PAINTED.map(([fx, fy]) => ({ x: X(fx), y: Y(fy) })));
+  const vis0 = clamp(-OX / IW, 0, 1) + .03, vis1 = clamp((W - OX) / IW, 0, 1) - .03;
+  let best = null, bestScore = -1;
+  for (let i = 0; i < 36; i++) {
+    const fx = vis0 + Math.random() * (vis1 - vis0), top = skyline(fx) + .015;
+    const cand = { fx, fy: top + Math.pow(Math.random(), .85) * Math.max(0, visBottom() - top), seed: 0 };
+    const p = flowerPos(cand);
+    let md = 1e9; for (const o of others) md = Math.min(md, Math.hypot(o.x - p.x, (o.y - p.y) * 1.4));
+    const score = Math.min(md, H * .22) + Math.random() * H * .02;
+    if (score > bestScore) { bestScore = score; best = cand; }
+  }
+  return best;
+}
+function renderList() {
+  list.innerHTML = '';
+  for (const e of state.entries) { const li = document.createElement('li'); li.textContent = `${e.text} (${new Date(e.ts).toLocaleDateString()})`; list.appendChild(li); }
+}
+function dissolve(text) {
+  const r = input.getBoundingClientRect(), cs = getComputedStyle(input);
+  const wrap = document.createElement('div'); wrap.className = 'drift';
+  Object.assign(wrap.style, { left: r.left + parseFloat(cs.paddingLeft) + 'px', top: r.top + 'px', height: r.height + 'px', lineHeight: r.height + 'px', fontFamily: cs.fontFamily, fontSize: cs.fontSize, letterSpacing: cs.letterSpacing, paddingTop: cs.paddingTop });
+  for (const ch of text) { const s = document.createElement('span'); s.textContent = ch; wrap.appendChild(s); }
+  ui.appendChild(wrap);
+  if (reduceMotion.matches) { wrap.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 500, fill: 'forwards' }); }
+  else [...wrap.children].forEach((s, i) => s.animate([
+    { transform: 'translate(0,0) rotate(0deg)', opacity: 1 },
+    { transform: `translate(${30 + Math.random() * 70}px, ${-16 - Math.random() * 42}px) rotate(${(Math.random() - .3) * 50}deg)`, opacity: 0 }
+  ], { duration: 1500 + Math.random() * 700, delay: i * 16 + Math.random() * 140, easing: 'cubic-bezier(.3,.1,.3,1)', fill: 'forwards' }));
+  setTimeout(() => wrap.remove(), 3400);
+  return r;
+}
+function plant(text, opts = {}) {
+  const spot = pickSpot();
+  const e = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), text, ts: Date.now(), fx: +spot.fx.toFixed(4), fy: +spot.fy.toFixed(4), seed: (Math.random() * 1e6) | 0 };
+  state.entries.push(e);
+  if (state.entries.length > 400) state.entries.splice(0, state.entries.length - 400);
+  if (!opts.instant) {
+    const now = performance.now(), r = opts.from, p = flowerPos(e);
+    const dur = reduceMotion.matches ? 0 : 1600;
+    if (dur) seeds.push({ x0: r.left + r.width * .5, y0: r.bottom - 4, x1: p.x, y1: p.y, cx: (r.left + r.width * .5 + p.x) / 2 + W * .12, cy: Math.min(r.bottom, p.y) - H * .05, t0: now, dur, color: FLOWER_TINT[e.seed % 3] });
+    growing.set(e.id, now + dur);
+  }
+  return e;
+}
+pillEl.addEventListener('submit', ev => {
+  ev.preventDefault();
+  const text = input.value.replace(/\s+/g, ' ').trim();
+  if (!text || !ready) { input.focus(); return; }
+  const r = dissolve(input.value);
+  input.value = '';
+  plant(text, { from: r });
+  save(); renderList();
+  live.textContent = `Planted a flower for: ${text}`;
+});
+input.addEventListener('keydown', ev => { if (ev.key === 'Escape') input.blur(); });
+
+/* hover / tap a flower to read it */
+const note = document.getElementById('note');
+let noteFor = null;
+function hitTest(x, y) {
+  let best = null, bd = 1e9;
+  for (const h of flowerHits) { const d = Math.hypot(h.x - x, h.y - y); if (d < h.r && d < bd) { bd = d; best = h; } }
+  return best;
+}
+function showNote(h) {
+  if (!h) { note.classList.remove('show'); noteFor = null; fxCv.style.cursor = ''; return; }
+  fxCv.style.cursor = 'pointer';
+  if (noteFor !== h.e) {
+    noteFor = h.e; note.textContent = h.e.text;
+    const sm = document.createElement('small');
+    sm.textContent = new Date(h.e.ts).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+    note.appendChild(sm);
+  }
+  const nx = clamp(h.x, 170, W - 170);
+  note.style.left = Math.max(8, Math.min(W - 8, nx)) + 'px'; note.style.top = (h.y - h.r * .9) + 'px';
+  note.classList.add('show');
+}
+fxCv.addEventListener('pointermove', ev => { if (ev.pointerType === 'mouse') showNote(hitTest(ev.clientX, ev.clientY)); });
+fxCv.addEventListener('pointerleave', () => showNote(null));
+fxCv.addEventListener('pointerdown', ev => { if (ev.pointerType !== 'mouse') showNote(hitTest(ev.clientX, ev.clientY)); });
+
+/* ------------------------------------------------------------------ *
+ *  Start
+ * ------------------------------------------------------------------ */
+setSeason(state.season, false);
+palA = palB = flatPal(state.season);
+Promise.all([loadSeason(state.season), Promise.all((window.FLOWER_SPRITES || []).map(loadImg))]).then(([, flowers]) => {
+  initGL(); buildAtlas(flowers.filter(Boolean)); ready = true;
+  layout();
+  if (params.has('demo')) {
+    const samples = ['morning light through the window', 'a long call with my sister', 'warm coffee', 'the walk home', 'finishing the sketch', 'my friends', 'rain on the roof', 'a good book', 'kind words from a stranger', 'fresh bread'];
+    for (let i = 0; i < (+params.get('demo') || 8); i++) plant(samples[i % samples.length], { instant: true });
+  }
+  renderList();
+  requestAnimationFrame(frame);
+  // fetch the other seasons in the background so switching is instant
+  setTimeout(() => SEASONS.forEach(loadSeason), 1200);
+});
+if (matchMedia('(hover: hover) and (pointer: fine)').matches) setTimeout(() => input.focus({ preventScroll: true }), 400);
+})();
+</script>
+</body>
+</html>
