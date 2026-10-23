@@ -1,6 +1,6 @@
 {
   "hosting": {
-    "site": "mithra-gratitude-garden",
+    "site": "gratitude-garden-journal",
     "public": ".",
     "ignore": [
       "firebase.json",
