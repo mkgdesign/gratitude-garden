@@ -65,6 +65,7 @@
     opacity: .85; transition: transform .4s cubic-bezier(.3,.7,.3,1), opacity .3s;
     -webkit-tap-highlight-color: transparent;
   }
+  #backupBtn { filter: none; }
   .menu-btn:hover, .menu-btn[aria-expanded="true"] { opacity: 1; transform: scale(1.1) rotate(-4deg); }
   .menu-btn svg { width: 100%; height: 100%; overflow: visible; display: block; }
   .menu-btn:focus-visible, .menu-item:focus-visible { outline: 1.5px solid var(--ink); outline-offset: 3px; }
@@ -141,12 +142,13 @@
       </div>
     </div>
     <div class="menu" id="backupMenu">
-      <button class="menu-btn" id="backupBtn" aria-haspopup="menu" aria-expanded="false" aria-label="Save or load your gratitudes">
-        <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7"><path class="ico-line" stroke="#fff" stroke-width="3.4" d="M12 3v10M7.5 9 12 13.5 16.5 9M4.5 15v4.5h15V15"/><path class="ico-line" stroke="currentColor" d="M12 3v10M7.5 9 12 13.5 16.5 9M4.5 15v4.5h15V15"/></svg>
+      <button class="menu-btn" id="backupBtn" aria-haspopup="menu" aria-expanded="false" aria-label="Menu: save, load or clear your garden">
+        <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="currentColor" stroke-width="2" d="M4.5 6.5h15M4.5 12h11M4.5 17.5h15"/></svg>
       </button>
       <div class="menu-list" role="menu" aria-label="Backup">
         <button class="menu-item" role="menuitem" id="exportBtn"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7"><path class="ico-line" d="M12 15V4M7.5 8.5 12 4l4.5 4.5M4.5 15v4.5h15V15"/></svg>Save my garden</button>
         <button class="menu-item" role="menuitem" id="importBtn"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7"><path class="ico-line" d="M12 4v11M7.5 10.5 12 15l4.5-4.5M4.5 15v4.5h15V15"/></svg>Load a garden</button>
+        <button class="menu-item" role="menuitem" id="clearBtn"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7"><path class="ico-line" d="M4.5 6.5h15M9.5 6.5V4h5v2.5M6.5 6.5l1 13h9l1-13M10 10.5v6M14 10.5v6"/></svg>Clear my garden</button>
       </div>
     </div>
   </div>
@@ -875,6 +877,14 @@ document.getElementById('exportBtn').addEventListener('click', () => {
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 4000);
   say(`Saved ${state.entries.length} gratitude${state.entries.length === 1 ? '' : 's'}`);
+});
+document.getElementById('clearBtn').addEventListener('click', () => {
+  closeMenus();
+  if (!state.entries.length) { say('Your garden is already empty'); return; }
+  if (!confirm("Clear all your flowers? This can't be undone.\n\nUse \"Save my garden\" first if you want a copy.")) return;
+  state.entries = []; growing.clear(); seeds = [];
+  showNote(null); save(); renderList();
+  say('Garden cleared');
 });
 const importFile = document.getElementById('importFile');
 document.getElementById('importBtn').addEventListener('click', () => { closeMenus(); importFile.click(); });
