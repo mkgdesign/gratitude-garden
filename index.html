@@ -7,12 +7,12 @@
 <title>Gratitude Garden</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Reenie+Beanie&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Shadows+Into+Light&display=swap" rel="stylesheet">
 <link rel="preload" as="image" href="assets/meadow-spring.jpg">
 <style>
   :root {
     --ink: #3a3a3a;
-    --hand: 'Reenie Beanie', 'Bradley Hand', 'Segoe Print', cursive;
+    --hand: 'Shadows Into Light', 'Bradley Hand', 'Segoe Print', cursive;
     --sans: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
     --ph: clamp(34px, 4.3vh, 52px);
     --pw: clamp(300px, 37.3vw, 760px);
@@ -36,45 +36,59 @@
     position: absolute; inset: 0; width: 100%; height: 100%; box-sizing: border-box;
     border: 0; border-radius: 999px; outline: 0; margin: 0;
     background: rgba(255, 255, 255, .3);
-    font-family: var(--sans); font-size: calc(var(--ph) * .36); color: var(--ink);
+    font-family: var(--hand); font-size: 16px; color: var(--ink);
     padding: 0 1.1em; caret-color: var(--ink);
   }
   .pill input::placeholder { color: #6b6b6b; opacity: 1; transition: opacity .3s; }
   .pill input:focus::placeholder { opacity: .6; }
 
-  /* season dots */
-  .seasons {
-    position: absolute; top: calc(2.8vh - var(--dh) / 2); right: calc(6vw - var(--dw) / 2);
-    display: flex; gap: max(9px, calc(2.4vw - var(--dw))); pointer-events: auto;
-  }
-  .dot {
-    width: var(--dw); height: var(--dh); padding: 0; border: 0; cursor: pointer;
-    background: none; display: grid; place-items: center;
+  /* top-right icon menus: season + backup */
+  .tools { position: absolute; top: calc(2.8vh - var(--dh) / 2); right: calc(6vw - var(--dw) / 2); display: flex; gap: max(12px, calc(2vw - var(--dw))); pointer-events: auto; }
+  .menu { position: relative; }
+  .menu-btn {
+    width: 24px; height: 24px; padding: 0; border: 0; cursor: pointer; background: none;
+    display: grid; place-items: center; color: var(--ink);
     filter: drop-shadow(0 0 1.2px rgba(255,255,255,.9)) drop-shadow(0 1px 2px rgba(40,60,80,.35));
-    opacity: .6; transform: rotate(var(--r, 0deg)) scale(.92);
-    transition: transform .5s cubic-bezier(.3,.7,.3,1), opacity .5s;
+    opacity: .85; transition: transform .4s cubic-bezier(.3,.7,.3,1), opacity .3s;
     -webkit-tap-highlight-color: transparent;
   }
-  .dot svg { width: 100%; height: 100%; overflow: visible; display: block; }
-  .dot:hover { opacity: .85; }
-  .dot[aria-pressed="true"] { opacity: 1; transform: rotate(var(--r, 0deg)) scale(1.1); }
-  .dot:focus-visible { outline: 1.5px solid var(--ink); outline-offset: 4px; border-radius: 50%; }
-  .season-label {
-    position: absolute; top: calc(2.8vh + var(--dh) / 2 + 6px); right: calc(6vw - var(--dw) / 2);
-    font: 21px/1 var(--hand); color: var(--ink); opacity: 0; transition: opacity .4s; letter-spacing: .05em;
+  .menu-btn:hover, .menu-btn[aria-expanded="true"] { opacity: 1; transform: scale(1.1) rotate(-4deg); }
+  .menu-btn svg { width: 100%; height: 100%; overflow: visible; display: block; }
+  .menu-btn:focus-visible, .menu-item:focus-visible { outline: 1.5px solid var(--ink); outline-offset: 3px; }
+  .menu-list {
+    position: absolute; top: calc(100% + 10px); right: 0; min-width: 9.5em; margin: 0; padding: .3em;
+    background: rgba(244, 242, 233, .9); border: 1.5px solid var(--ink);
+    border-radius: 18px 12px 20px 12px / 12px 20px 12px 18px;
+    opacity: 0; visibility: hidden; transform: translateY(-4px); transition: opacity .25s, transform .25s, visibility 0s .25s;
   }
-  .season-label.show { opacity: .85; }
+  .menu.open .menu-list { opacity: 1; visibility: visible; transform: none; transition-delay: 0s; }
+  .menu-item {
+    display: flex; align-items: center; gap: .6em; width: 100%; box-sizing: border-box; padding: .15em .6em .2em .4em;
+    border: 0; border-radius: 10px; background: none; cursor: pointer; text-align: left;
+    font: 16px/1.2 var(--hand); color: var(--ink); letter-spacing: .03em; white-space: nowrap;
+  }
+  .menu-item:hover { background: rgba(58, 58, 58, .09); }
+  .menu-item[aria-checked="true"] { background: rgba(58, 58, 58, .13); }
+  .menu-item svg { width: 24px; height: 24px; flex: none; overflow: visible; }
+  .menu-item .ico-line { stroke: var(--ink); }
+  .menu-item[data-season="winter"] g[stroke] { stroke: #7fa6c4; }
+  .toast {
+    position: absolute; top: calc(2.8vh + var(--dh) / 2 + 8px); right: calc(6vw - var(--dw) / 2); max-width: 70vw; text-align: right;
+    font: 20px/1.1 var(--hand); color: var(--ink); opacity: 0; transition: opacity .4s; pointer-events: none;
+    text-shadow: 0 0 6px rgba(255,255,255,.8);
+  }
+  .toast.show { opacity: .95; }
 
   /* note shown when hovering a gratitude flower */
   .note {
     position: absolute; left: 0; top: 0; max-width: min(320px, 72vw); box-sizing: border-box;
-    padding: .3em .85em .4em; font: 23px/1.1 var(--hand); color: var(--ink); letter-spacing: .03em;
+    padding: .3em .85em .4em; font: 16px/1.1 var(--hand); color: var(--ink); letter-spacing: .03em;
     background: rgba(244, 242, 233, .84); border: 1.5px solid var(--ink);
     border-radius: 255px 16px 225px 16px / 16px 225px 16px 255px;
     opacity: 0; transform: translate(-50%, calc(-100% + 4px)); transition: opacity .35s, transform .35s;
     white-space: pre-wrap; overflow-wrap: anywhere;
   }
-  .note small { display: block; font-size: .72em; opacity: .65; margin-top: .1em; }
+  .note small { display: block; font-size: 14px; opacity: .65; margin-top: .1em; }
   .note.show { opacity: 1; transform: translate(-50%, -100%); }
 
   .drift { position: absolute; font-family: var(--hand); color: var(--ink); white-space: pre; pointer-events: none; }
@@ -85,7 +99,7 @@
 
   @media (max-width: 700px) {
     :root { --pw: 86vw; }
-    .pill input { font-size: max(16px, min(calc(var(--ph) * .36), 4.2vw)); padding-left: .9em; padding-right: .9em; }
+    .pill input { font-size: 16px; padding-left: .9em; padding-right: .9em; }
   }
 </style>
 </head>
@@ -102,13 +116,28 @@
     <button type="submit" class="sr-only">Plant</button>
   </form>
 
-  <div class="seasons" role="group" aria-label="Season">
-    <button class="dot" data-season="spring" aria-label="Spring" style="--r:-4deg"><svg viewBox="0 0 24 24" aria-hidden="true"><g transform="translate(12 12)"><g fill="#f4a6cf" stroke="#d9709f" stroke-width=".7"><ellipse cx="0" cy="-5.2" rx="3.6" ry="4.6" transform="rotate(0)"/><ellipse cx="0" cy="-5.2" rx="3.6" ry="4.6" transform="rotate(72)"/><ellipse cx="0" cy="-5.2" rx="3.6" ry="4.6" transform="rotate(144)"/><ellipse cx="0" cy="-5.2" rx="3.6" ry="4.6" transform="rotate(216)"/><ellipse cx="0" cy="-5.2" rx="3.6" ry="4.6" transform="rotate(288)"/></g><circle r="2.3" fill="#ffd95a" stroke="#e0a82e" stroke-width=".6"/></g></svg></button>
-    <button class="dot" data-season="summer" aria-label="Summer" style="--r:6deg"><svg viewBox="0 0 24 24" aria-hidden="true"><g transform="translate(12 12)"><g stroke="#f7a823" stroke-width="1.8" stroke-linecap="round"><line x1="0" y1="-7.6" x2="0" y2="-10.6" transform="rotate(0)"/><line x1="0" y1="-7.6" x2="0" y2="-10.6" transform="rotate(45)"/><line x1="0" y1="-7.6" x2="0" y2="-10.6" transform="rotate(90)"/><line x1="0" y1="-7.6" x2="0" y2="-10.6" transform="rotate(135)"/><line x1="0" y1="-7.6" x2="0" y2="-10.6" transform="rotate(180)"/><line x1="0" y1="-7.6" x2="0" y2="-10.6" transform="rotate(225)"/><line x1="0" y1="-7.6" x2="0" y2="-10.6" transform="rotate(270)"/><line x1="0" y1="-7.6" x2="0" y2="-10.6" transform="rotate(315)"/></g><circle r="5.4" fill="#ffd54a" stroke="#f2a31c" stroke-width=".8"/></g></svg></button>
-    <button class="dot" data-season="autumn" aria-label="Autumn" style="--r:-8deg"><svg viewBox="0 0 24 24" aria-hidden="true"><g stroke-linejoin="round" stroke-linecap="round"><path d="M12 2.5C18.5 6 20 12 12 20.5 4 12 5.5 6 12 2.5Z" fill="#e8742a" stroke="#b84a16" stroke-width=".9"/><path d="M12 7v15M12 11l-3-2.6M12 14l3.4-3M12 16.6l-2.6-2" fill="none" stroke="#b84a16" stroke-width=".9"/></g></svg></button>
-    <button class="dot" data-season="winter" aria-label="Winter" style="--r:10deg"><svg viewBox="0 0 24 24" aria-hidden="true"><g transform="translate(12 12)" stroke="#fff" stroke-width="1.7" stroke-linecap="round" fill="none"><g transform="rotate(0)"><line x1="0" y1="0" x2="0" y2="-9.5"/><polyline points="-2.6,-7.4 0,-5.2 2.6,-7.4"/></g><g transform="rotate(60)"><line x1="0" y1="0" x2="0" y2="-9.5"/><polyline points="-2.6,-7.4 0,-5.2 2.6,-7.4"/></g><g transform="rotate(120)"><line x1="0" y1="0" x2="0" y2="-9.5"/><polyline points="-2.6,-7.4 0,-5.2 2.6,-7.4"/></g><g transform="rotate(180)"><line x1="0" y1="0" x2="0" y2="-9.5"/><polyline points="-2.6,-7.4 0,-5.2 2.6,-7.4"/></g><g transform="rotate(240)"><line x1="0" y1="0" x2="0" y2="-9.5"/><polyline points="-2.6,-7.4 0,-5.2 2.6,-7.4"/></g><g transform="rotate(300)"><line x1="0" y1="0" x2="0" y2="-9.5"/><polyline points="-2.6,-7.4 0,-5.2 2.6,-7.4"/></g></g></svg></button>
+  <div class="tools">
+    <div class="menu" id="seasonMenu">
+      <button class="menu-btn" id="seasonBtn" aria-haspopup="menu" aria-expanded="false" aria-label="Season"></button>
+      <div class="menu-list" role="menu" aria-label="Season">
+      <button class="menu-item" role="menuitemradio" data-season="spring" aria-checked="false"><svg viewBox="0 0 24 24" aria-hidden="true"><g transform="translate(12 12)"><g fill="#f4a6cf" stroke="#d9709f" stroke-width=".7"><ellipse cx="0" cy="-5.2" rx="3.6" ry="4.6" transform="rotate(0)"/><ellipse cx="0" cy="-5.2" rx="3.6" ry="4.6" transform="rotate(72)"/><ellipse cx="0" cy="-5.2" rx="3.6" ry="4.6" transform="rotate(144)"/><ellipse cx="0" cy="-5.2" rx="3.6" ry="4.6" transform="rotate(216)"/><ellipse cx="0" cy="-5.2" rx="3.6" ry="4.6" transform="rotate(288)"/></g><circle r="2.3" fill="#ffd95a" stroke="#e0a82e" stroke-width=".6"/></g></svg>Spring</button>
+      <button class="menu-item" role="menuitemradio" data-season="summer" aria-checked="false"><svg viewBox="0 0 24 24" aria-hidden="true"><g transform="translate(12 12)"><g stroke="#f7a823" stroke-width="1.8" stroke-linecap="round"><line x1="0" y1="-7.6" x2="0" y2="-10.6" transform="rotate(0)"/><line x1="0" y1="-7.6" x2="0" y2="-10.6" transform="rotate(45)"/><line x1="0" y1="-7.6" x2="0" y2="-10.6" transform="rotate(90)"/><line x1="0" y1="-7.6" x2="0" y2="-10.6" transform="rotate(135)"/><line x1="0" y1="-7.6" x2="0" y2="-10.6" transform="rotate(180)"/><line x1="0" y1="-7.6" x2="0" y2="-10.6" transform="rotate(225)"/><line x1="0" y1="-7.6" x2="0" y2="-10.6" transform="rotate(270)"/><line x1="0" y1="-7.6" x2="0" y2="-10.6" transform="rotate(315)"/></g><circle r="5.4" fill="#ffd54a" stroke="#f2a31c" stroke-width=".8"/></g></svg>Summer</button>
+      <button class="menu-item" role="menuitemradio" data-season="autumn" aria-checked="false"><svg viewBox="0 0 24 24" aria-hidden="true"><g stroke-linejoin="round" stroke-linecap="round"><path d="M12 2.5C18.5 6 20 12 12 20.5 4 12 5.5 6 12 2.5Z" fill="#e8742a" stroke="#b84a16" stroke-width=".9"/><path d="M12 7v15M12 11l-3-2.6M12 14l3.4-3M12 16.6l-2.6-2" fill="none" stroke="#b84a16" stroke-width=".9"/></g></svg>Autumn</button>
+      <button class="menu-item" role="menuitemradio" data-season="winter" aria-checked="false"><svg viewBox="0 0 24 24" aria-hidden="true"><g transform="translate(12 12)" stroke="#fff" stroke-width="1.7" stroke-linecap="round" fill="none"><g transform="rotate(0)"><line x1="0" y1="0" x2="0" y2="-9.5"/><polyline points="-2.6,-7.4 0,-5.2 2.6,-7.4"/></g><g transform="rotate(60)"><line x1="0" y1="0" x2="0" y2="-9.5"/><polyline points="-2.6,-7.4 0,-5.2 2.6,-7.4"/></g><g transform="rotate(120)"><line x1="0" y1="0" x2="0" y2="-9.5"/><polyline points="-2.6,-7.4 0,-5.2 2.6,-7.4"/></g><g transform="rotate(180)"><line x1="0" y1="0" x2="0" y2="-9.5"/><polyline points="-2.6,-7.4 0,-5.2 2.6,-7.4"/></g><g transform="rotate(240)"><line x1="0" y1="0" x2="0" y2="-9.5"/><polyline points="-2.6,-7.4 0,-5.2 2.6,-7.4"/></g><g transform="rotate(300)"><line x1="0" y1="0" x2="0" y2="-9.5"/><polyline points="-2.6,-7.4 0,-5.2 2.6,-7.4"/></g></g></svg>Winter</button>
+      </div>
+    </div>
+    <div class="menu" id="backupMenu">
+      <button class="menu-btn" id="backupBtn" aria-haspopup="menu" aria-expanded="false" aria-label="Save or load your gratitudes">
+        <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7"><path class="ico-line" stroke="#fff" stroke-width="3.4" d="M12 3v10M7.5 9 12 13.5 16.5 9M4.5 15v4.5h15V15"/><path class="ico-line" stroke="currentColor" d="M12 3v10M7.5 9 12 13.5 16.5 9M4.5 15v4.5h15V15"/></svg>
+      </button>
+      <div class="menu-list" role="menu" aria-label="Backup">
+        <button class="menu-item" role="menuitem" id="exportBtn"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7"><path class="ico-line" d="M12 15V4M7.5 8.5 12 4l4.5 4.5M4.5 15v4.5h15V15"/></svg>Save my garden</button>
+        <button class="menu-item" role="menuitem" id="importBtn"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7"><path class="ico-line" d="M12 4v11M7.5 10.5 12 15l4.5-4.5M4.5 15v4.5h15V15"/></svg>Load a garden</button>
+      </div>
+    </div>
   </div>
-  <div class="season-label" id="seasonLabel" aria-hidden="true"></div>
+  <div class="toast" id="toast" role="status"></div>
+  <input type="file" id="importFile" accept="application/json,.json" hidden>
 
   <div class="note" id="note" role="tooltip"></div>
   <div class="sr-only" aria-live="polite" id="live"></div>
@@ -769,17 +798,16 @@ window.addEventListener('resize', () => { if (!ready) return; clearTimeout(resiz
 /* ------------------------------------------------------------------ *
  *  Seasons
  * ------------------------------------------------------------------ */
-const dots = [...document.querySelectorAll('.dot')], label = document.getElementById('seasonLabel');
-let labelTimer = 0;
-function showLabel(name, ms) {
-  label.textContent = name; label.classList.add('show');
-  clearTimeout(labelTimer); if (ms) labelTimer = setTimeout(() => label.classList.remove('show'), ms);
-}
+const seasonItems = [...document.querySelectorAll('#seasonMenu .menu-item')], seasonBtn = document.getElementById('seasonBtn');
 function setSeason(name, animate) {
   if (!SEASON[name]) return;
   state.season = name;
   document.body.style.background = SEASON[name].sky; document.querySelector('meta[name=theme-color]').content = SEASON[name].sky;
-  dots.forEach(d => d.setAttribute('aria-pressed', String(d.dataset.season === name)));
+  seasonItems.forEach(d => {
+    const on = d.dataset.season === name;
+    d.setAttribute('aria-checked', String(on));
+    if (on) seasonBtn.innerHTML = d.querySelector('svg').outerHTML;
+  });
   particles = [];
   loadSeason(name).then(() => {
     if (state.season !== name) return;
@@ -792,12 +820,72 @@ function setSeason(name, animate) {
     if (ready) bake();
   });
 }
-dots.forEach(d => {
-  d.addEventListener('click', () => { if (state.season !== d.dataset.season) { setSeason(d.dataset.season, true); save(); } showLabel(d.dataset.season, 1400); });
-  d.addEventListener('mouseenter', () => showLabel(d.dataset.season));
-  d.addEventListener('focus', () => showLabel(d.dataset.season));
-  d.addEventListener('mouseleave', () => showLabel(state.season, 10));
-  d.addEventListener('blur', () => label.classList.remove('show'));
+
+/* ------------------------------------------------------------------ *
+ *  Icon menus (season, backup) + export / import
+ * ------------------------------------------------------------------ */
+const menus = [...document.querySelectorAll('.menu')];
+function closeMenus(except) {
+  menus.forEach(m => { if (m !== except) { m.classList.remove('open'); m.querySelector('.menu-btn').setAttribute('aria-expanded', 'false'); } });
+}
+menus.forEach(m => {
+  const btn = m.querySelector('.menu-btn');
+  btn.addEventListener('click', ev => {
+    ev.stopPropagation(); closeMenus(m);
+    const open = m.classList.toggle('open'); btn.setAttribute('aria-expanded', String(open));
+    if (open && ev.detail === 0) m.querySelector('.menu-item').focus({ preventScroll: true });
+  });
+  m.addEventListener('keydown', ev => {
+    const its = [...m.querySelectorAll('.menu-item')], i = its.indexOf(document.activeElement);
+    if (ev.key === 'Escape') { closeMenus(); btn.focus(); }
+    else if (ev.key === 'ArrowDown' || ev.key === 'ArrowUp') { ev.preventDefault(); if (m.classList.contains('open')) its[(i + (ev.key === 'ArrowDown' ? 1 : -1) + its.length) % its.length].focus(); }
+  });
+});
+document.addEventListener('pointerdown', ev => { if (!ev.target.closest('.menu')) closeMenus(); });
+seasonItems.forEach(d => d.addEventListener('click', () => {
+  if (state.season !== d.dataset.season) { setSeason(d.dataset.season, true); save(); }
+  closeMenus(); seasonBtn.focus();
+}));
+
+const toast = document.getElementById('toast');
+let toastTimer = 0;
+function say(msg) { toast.textContent = msg; toast.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => toast.classList.remove('show'), 3200); }
+
+document.getElementById('exportBtn').addEventListener('click', () => {
+  closeMenus();
+  if (!state.entries.length) { say('Nothing planted yet'); return; }
+  const data = { app: 'gratitude-garden', version: 1, exported: new Date().toISOString(), season: state.season, entries: state.entries };
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }));
+  a.download = `gratitude-garden-${new Date().toISOString().slice(0, 10)}.json`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  say(`Saved ${state.entries.length} gratitude${state.entries.length === 1 ? '' : 's'}`);
+});
+const importFile = document.getElementById('importFile');
+document.getElementById('importBtn').addEventListener('click', () => { closeMenus(); importFile.click(); });
+importFile.addEventListener('change', async () => {
+  const f = importFile.files[0]; importFile.value = '';
+  if (!f) return;
+  try {
+    const data = JSON.parse(await f.text());
+    const incoming = Array.isArray(data) ? data : data && data.entries;
+    if (!Array.isArray(incoming)) throw new Error('not a garden file');
+    const have = new Set(state.entries.map(e => e.id));
+    let added = 0;
+    for (const x of incoming) {
+      if (!x || typeof x.text !== 'string' || !x.text.trim() || have.has(x.id)) continue;
+      const num = (v, d) => Number.isFinite(v) ? v : d;
+      let fx = num(x.fx, NaN), fy = num(x.fy, NaN);
+      if (!(fx >= 0 && fx <= 1 && fy >= 0 && fy <= 1)) { const sp = pickSpot(); fx = sp.fx; fy = sp.fy; }
+      const e = { id: typeof x.id === 'string' && x.id ? x.id : Date.now().toString(36) + Math.random().toString(36).slice(2, 6), text: x.text.replace(/\s+/g, ' ').trim().slice(0, 120), ts: num(x.ts, Date.now()), fx, fy, seed: num(x.seed, (Math.random() * 1e6) | 0) };
+      have.add(e.id); state.entries.push(e); added++;
+    }
+    state.entries.sort((a, b) => a.ts - b.ts);
+    if (state.entries.length > 400) state.entries.splice(0, state.entries.length - 400);
+    save(); renderList();
+    say(added ? `Loaded ${added} gratitude${added === 1 ? '' : 's'}` : 'Nothing new to add');
+  } catch (err) { say("That file doesn't look like a garden"); }
 });
 
 /* ------------------------------------------------------------------ *
