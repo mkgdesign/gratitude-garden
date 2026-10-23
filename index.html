@@ -26,6 +26,14 @@
   #fx { touch-action: manipulation; }
   .ui { position: fixed; inset: 0; pointer-events: none; }
 
+  /* splash: two solid panels that part in the middle once the garden is ready */
+  #splash { position: fixed; inset: 0; z-index: 20; }
+  #splash i { position: absolute; top: 0; bottom: 0; width: 50.2%; background: #87c3cc; transition: transform .9s cubic-bezier(.7, 0, .3, 1); }
+  #splash i:first-child { left: 0; } #splash i:last-child { right: 0; }
+  #splash.open { pointer-events: none; }
+  #splash.open i:first-child { transform: translateX(-101%); } #splash.open i:last-child { transform: translateX(101%); }
+  @media (prefers-reduced-motion: reduce) { #splash i { transition: opacity .4s; } #splash.open i { transform: none; opacity: 0; } }
+
   /* gratitude input */
   .pill {
     position: absolute; left: 50%; top: calc(35.8vh - var(--ph) / 2);
@@ -108,6 +116,7 @@
 <canvas id="grass" aria-hidden="true"></canvas>
 <canvas id="fx" aria-hidden="true"></canvas>
 
+<div id="splash" aria-hidden="true"><i></i><i></i></div>
 <div id="diag"></div>
 <div class="ui" id="ui">
   <form class="pill" id="pill" autocomplete="off">
@@ -220,7 +229,7 @@ const params = new URLSearchParams(location.search);
 const FROZEN = params.has('still');
 // on-screen status: always shown if the grass layer fails, or with ?debug
 const diag = document.getElementById('diag');
-const showDiag = msg => { diag.textContent = msg; diag.style.display = 'block'; };
+const showDiag = msg => { openSplash(); diag.textContent = msg; diag.style.display = 'block'; };
 window.addEventListener('error', e => showDiag('Script error: ' + e.message + (e.lineno ? ' (line ' + e.lineno + ')' : '')));
 window.addEventListener('unhandledrejection', e => showDiag('Error: ' + (e.reason && e.reason.message || e.reason)));
 const STORE = 'gratitude-garden:v1';
@@ -975,6 +984,9 @@ fxCv.addEventListener('pointermove', ev => { if (ev.pointerType === 'mouse') sho
 fxCv.addEventListener('pointerleave', () => showNote(null));
 fxCv.addEventListener('pointerdown', ev => { if (ev.pointerType !== 'mouse') showNote(hitTest(ev.clientX, ev.clientY)); });
 
+function openSplash() { const sp = document.getElementById('splash'); if (!sp) return; sp.classList.add('open'); setTimeout(() => sp.remove(), 1200); }
+setTimeout(openSplash, 8000);   // never trap the visitor behind it
+
 /* ------------------------------------------------------------------ *
  *  Start
  * ------------------------------------------------------------------ */
@@ -989,6 +1001,7 @@ Promise.all([loadSeason(state.season), Promise.all((window.FLOWER_SPRITES || [])
   }
   renderList();
   requestAnimationFrame(frame);
+  setTimeout(openSplash, Math.max(0, 600 - performance.now()));
   // fetch the other seasons in the background so switching is instant
   setTimeout(() => SEASONS.forEach(loadSeason), 1200);
 });
